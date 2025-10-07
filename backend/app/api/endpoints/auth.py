@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.api import schemas
+from app.api.deps import get_current_user
 from app.models.models import Usuario
 
 router = APIRouter()
@@ -96,5 +97,4 @@ def obtener_usuario_actual(
     """
     Obtener información del usuario actual
     """
-    from app.api.deps import get_current_user
     return current_user
