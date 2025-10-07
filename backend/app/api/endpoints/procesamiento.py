@@ -20,7 +20,7 @@ router = APIRouter()
 @router.post("/procesar", response_model=schemas.ProcesamientoResponse)
 async def procesar_archivo_ventas(
     archivo: UploadFile = File(..., description="Archivo de ventas Excel"),
-    mes: str = Form(..., regex=r'^\d{2}$'),
+    mes: str = Form(..., min_length=2, max_length=2),
     subdiario_inicial: int = Form(..., ge=1),
     numero_comprobante_inicial: int = Form(..., ge=1, le=9999),
     db: Session = Depends(get_db),
