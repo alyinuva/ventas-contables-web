@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
 
-    # Database
-    DATABASE_URL: str = "sqlite:////tmp/ventas_contables.db"
+    # Database - PostgreSQL en producción, SQLite en desarrollo
+    DATABASE_URL: str = "sqlite:///./ventas_contables.db"
 
     # Security
     SECRET_KEY: str = "change-this-secret-key-in-production"
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # File upload
     MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024  # 50MB
-    UPLOAD_DIR: str = "./uploads"
+    UPLOAD_DIR: str = "/tmp/uploads"
 
     class Config:
         env_file = ".env"

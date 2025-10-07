@@ -8,10 +8,11 @@ import os
 
 from app.core.config import settings
 from app.core.database import engine, Base
+from app.core.init_db import init_db
 from app.api.endpoints import procesamiento, configuracion, historial, auth
 
-# Crear tablas
-Base.metadata.create_all(bind=engine)
+# Inicializar base de datos y crear usuario admin
+init_db()
 
 # Crear directorio de uploads
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
