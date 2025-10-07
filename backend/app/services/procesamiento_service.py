@@ -147,7 +147,7 @@ class ProcesamientoService:
                         if len(df.columns) > 8:
                             logger.info(f"  Col 8 ({df.columns[8]}): {df.iloc[i_detalle, 8]}")
 
-                        if pd.notna(importe_linea):
+                        if pd.notna(importe_linea) and importe_linea > 0:
                             costo_bolsa = importe_linea
                         else:
                             costo_bolsa = cantidad * 0.5
