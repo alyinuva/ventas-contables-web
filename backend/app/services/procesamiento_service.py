@@ -126,7 +126,7 @@ class ProcesamientoService:
                         break
 
                     producto = str(df.iloc[i_detalle, 2]).strip()
-                    cantidad = df.iloc[i_detalle, 6]
+                    cantidad = df.iloc[i_detalle, 0]  # Col 0 contiene la cantidad en la sección de detalle
                     cantidad = pd.to_numeric(cantidad, errors='coerce')
                     if pd.isna(cantidad):
                         break
