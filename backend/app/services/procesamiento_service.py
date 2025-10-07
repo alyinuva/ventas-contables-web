@@ -151,7 +151,7 @@ class ProcesamientoService:
 
         # Construcción de los registros contables
         datos = []
-        num_comprobante_int_local = int(num_comprobante_inicial)
+        num_comprobante_int_local = int(num_comprobante_inicial) - 1
         subdiario_int_local = int(subdiario_inicial)
 
         for boleta in info:

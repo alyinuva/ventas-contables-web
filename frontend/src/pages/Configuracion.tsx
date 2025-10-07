@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Upload, Plus, Trash2 } from 'lucide-react'
+import { Upload, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -7,11 +7,18 @@ import { Label } from '@/components/ui/Label'
 import { productosApi, combosApi } from '@/lib/api'
 import type { ProductoCuenta, ComboSalto } from '@/types'
 
+type SortField = 'nombre' | 'fecha'
+type SortDirection = 'asc' | 'desc' | null
+
 export function Configuracion() {
   const [activeTab, setActiveTab] = useState<'productos' | 'combos'>('productos')
   const [productos, setProductos] = useState<ProductoCuenta[]>([])
   const [combos, setCombos] = useState<ComboSalto[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Estados de ordenamiento
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null)
 
   // Nuevo producto/combo
   const [nuevoProducto, setNuevoProducto] = useState('')
@@ -124,14 +131,69 @@ export function Configuracion() {
     }
   }
 
-  const productosFiltrados = productos.filter(
-    (p) =>
-      p.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.cuenta_contable.toLowerCase().includes(searchTerm.toLowerCase())
+  // Función para manejar el ordenamiento
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Cambiar dirección o resetear
+      if (sortDirection === 'asc') {
+        setSortDirection('desc')
+      } else if (sortDirection === 'desc') {
+        setSortDirection(null)
+        setSortField(null)
+      }
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  // Función para obtener el ícono de ordenamiento
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 inline opacity-50" />
+    }
+    if (sortDirection === 'asc') {
+      return <ArrowUp className="h-4 w-4 ml-1 inline text-primary" />
+    }
+    return <ArrowDown className="h-4 w-4 ml-1 inline text-primary" />
+  }
+
+  // Función para ordenar un array
+  const sortArray = <T extends ProductoCuenta | ComboSalto>(items: T[]): T[] => {
+    if (!sortField || !sortDirection) return items
+
+    return [...items].sort((a, b) => {
+      let aValue: string | number
+      let bValue: string | number
+
+      if (sortField === 'nombre') {
+        aValue = 'producto' in a ? a.producto : a.combo
+        bValue = 'producto' in b ? b.producto : b.combo
+        aValue = aValue.toLowerCase()
+        bValue = bValue.toLowerCase()
+      } else {
+        aValue = new Date(a.created_at).getTime()
+        bValue = new Date(b.created_at).getTime()
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
+  const productosFiltrados = sortArray(
+    productos.filter(
+      (p) =>
+        p.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.cuenta_contable.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   )
 
-  const combosFiltrados = combos.filter((c) =>
-    c.combo.toLowerCase().includes(searchTerm.toLowerCase())
+  const combosFiltrados = sortArray(
+    combos.filter((c) =>
+      c.combo.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   )
 
   return (
@@ -246,11 +308,22 @@ export function Configuracion() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                      <th
+                        className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none"
+                        onClick={() => handleSort('nombre')}
+                      >
                         Producto
+                        {getSortIcon('nombre')}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                         Cuenta Contable
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none"
+                        onClick={() => handleSort('fecha')}
+                      >
+                        Fecha Creación
+                        {getSortIcon('fecha')}
                       </th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
                         Acciones
@@ -262,6 +335,13 @@ export function Configuracion() {
                       <tr key={producto.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm">{producto.producto}</td>
                         <td className="px-4 py-3 text-sm font-mono">{producto.cuenta_contable}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {new Date(producto.created_at).toLocaleDateString('es-PE', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })}
+                        </td>
                         <td className="px-4 py-3 text-sm text-right">
                           <Button
                             variant="ghost"
@@ -357,11 +437,22 @@ export function Configuracion() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                      <th
+                        className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none"
+                        onClick={() => handleSort('nombre')}
+                      >
                         Combo
+                        {getSortIcon('nombre')}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                         Salto
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none"
+                        onClick={() => handleSort('fecha')}
+                      >
+                        Fecha Creación
+                        {getSortIcon('fecha')}
                       </th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
                         Acciones
@@ -373,6 +464,13 @@ export function Configuracion() {
                       <tr key={combo.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm">{combo.combo}</td>
                         <td className="px-4 py-3 text-sm font-mono">{combo.salto}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {new Date(combo.created_at).toLocaleDateString('es-PE', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })}
+                        </td>
                         <td className="px-4 py-3 text-sm text-right">
                           <Button
                             variant="ghost"
