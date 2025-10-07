@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, Download, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Upload, Download, AlertCircle, CheckCircle2, Save, RefreshCw, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
-import { procesamientoApi } from '@/lib/api'
+import { procesamientoApi, productosApi } from '@/lib/api'
+
+interface ProductoMapeo {
+  producto: string
+  cuenta_contable: string
+}
 
 export function Procesar() {
   const [archivo, setArchivo] = useState<File | null>(null)
@@ -15,6 +20,13 @@ export function Procesar() {
   const [loading, setLoading] = useState(false)
   const [resultado, setResultado] = useState<any>(null)
   const [error, setError] = useState('')
+
+  // Estados para mapeo de productos
+  const [mapeos, setMapeos] = useState<ProductoMapeo[]>([])
+  const [mapeosExpandido, setMapeosExpandido] = useState(true)
+  const [guardandoMapeos, setGuardandoMapeos] = useState(false)
+  const [reprocesando, setReprocesando] = useState(false)
+  const [mensajeExito, setMensajeExito] = useState('')
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -26,6 +38,8 @@ export function Procesar() {
       setArchivo(acceptedFiles[0])
       setError('')
       setResultado(null)
+      setMapeos([])
+      setMensajeExito('')
     },
   })
 
@@ -43,6 +57,7 @@ export function Procesar() {
     setLoading(true)
     setError('')
     setResultado(null)
+    setMensajeExito('')
 
     try {
       const result = await procesamientoApi.procesar(archivo, {
@@ -51,6 +66,18 @@ export function Procesar() {
         numero_comprobante_inicial: parseInt(comprobante),
       })
       setResultado(result)
+
+      // Inicializar mapeos si hay códigos faltantes
+      if (result.codigos_faltantes && result.codigos_faltantes.length > 0) {
+        const nuevosMapeos = result.codigos_faltantes.map((codigo: string) => ({
+          producto: codigo,
+          cuenta_contable: ''
+        }))
+        setMapeos(nuevosMapeos)
+        setMapeosExpandido(true)
+      } else {
+        setMapeos([])
+      }
     } catch (err: any) {
       // Manejar errores de validación de Pydantic (422)
       if (err.response?.data?.detail) {
@@ -81,6 +108,114 @@ export function Procesar() {
         console.error('Error descargando archivo:', err)
         setError('Error al descargar el archivo')
       }
+    }
+  }
+
+  // Actualizar cuenta contable de un mapeo específico
+  const handleUpdateMapeo = (index: number, cuentaContable: string) => {
+    const nuevosMapeos = [...mapeos]
+    nuevosMapeos[index].cuenta_contable = cuentaContable
+    setMapeos(nuevosMapeos)
+  }
+
+  // Eliminar un mapeo de la lista
+  const handleEliminarMapeo = (index: number) => {
+    const nuevosMapeos = mapeos.filter((_, i) => i !== index)
+    setMapeos(nuevosMapeos)
+  }
+
+  // Guardar mapeos en la base de datos
+  const handleGuardarMapeos = async () => {
+    // Validar que todos los mapeos tengan cuenta contable
+    const mapeosIncompletos = mapeos.filter(m => !m.cuenta_contable.trim())
+    if (mapeosIncompletos.length > 0) {
+      setError(`Completa la cuenta contable para todos los productos (${mapeosIncompletos.length} faltantes)`)
+      return
+    }
+
+    setGuardandoMapeos(true)
+    setError('')
+    setMensajeExito('')
+
+    try {
+      // Guardar cada mapeo
+      const promesas = mapeos.map(mapeo =>
+        productosApi.create({
+          producto: mapeo.producto,
+          cuenta_contable: mapeo.cuenta_contable,
+          activo: true
+        })
+      )
+
+      await Promise.all(promesas)
+      setMensajeExito(`${mapeos.length} productos guardados exitosamente`)
+    } catch (err: any) {
+      console.error('Error guardando mapeos:', err)
+      setError('Error al guardar los mapeos. Algunos productos ya pueden existir.')
+    } finally {
+      setGuardandoMapeos(false)
+    }
+  }
+
+  // Guardar mapeos y reprocesar automáticamente
+  const handleGuardarYReprocesar = async () => {
+    // Validar que todos los mapeos tengan cuenta contable
+    const mapeosIncompletos = mapeos.filter(m => !m.cuenta_contable.trim())
+    if (mapeosIncompletos.length > 0) {
+      setError(`Completa la cuenta contable para todos los productos (${mapeosIncompletos.length} faltantes)`)
+      return
+    }
+
+    if (!archivo) {
+      setError('No hay archivo para reprocesar')
+      return
+    }
+
+    setGuardandoMapeos(true)
+    setReprocesando(true)
+    setError('')
+    setMensajeExito('')
+
+    try {
+      // 1. Guardar mapeos
+      const promesas = mapeos.map(mapeo =>
+        productosApi.create({
+          producto: mapeo.producto,
+          cuenta_contable: mapeo.cuenta_contable,
+          activo: true
+        })
+      )
+      await Promise.all(promesas)
+      setMensajeExito(`${mapeos.length} productos guardados exitosamente`)
+
+      // 2. Reprocesar archivo con los nuevos mapeos
+      const result = await procesamientoApi.procesar(archivo, {
+        mes,
+        subdiario_inicial: parseInt(subdiario),
+        numero_comprobante_inicial: parseInt(comprobante),
+      })
+
+      setResultado(result)
+
+      // 3. Actualizar mapeos si aún hay códigos faltantes
+      if (result.codigos_faltantes && result.codigos_faltantes.length > 0) {
+        const nuevosMapeos = result.codigos_faltantes.map((codigo: string) => ({
+          producto: codigo,
+          cuenta_contable: ''
+        }))
+        setMapeos(nuevosMapeos)
+        setMensajeExito(`Archivo reprocesado. Aún quedan ${result.codigos_faltantes.length} productos sin mapeo.`)
+      } else {
+        setMapeos([])
+        setMensajeExito('¡Archivo procesado completamente! Todos los productos están mapeados.')
+        setMapeosExpandido(false)
+      }
+    } catch (err: any) {
+      console.error('Error en guardar y reprocesar:', err)
+      setError('Error al guardar o reprocesar. Revisa los datos ingresados.')
+    } finally {
+      setGuardandoMapeos(false)
+      setReprocesando(false)
     }
   }
 
@@ -202,6 +337,21 @@ export function Procesar() {
         </Card>
       )}
 
+      {/* Success Message */}
+      {mensajeExito && (
+        <Card className="border-green-500">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-medium text-green-600">Operación exitosa</h3>
+                <p className="text-sm text-green-600/80 mt-1">{mensajeExito}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Success Result */}
       {resultado && (
         <Card className="border-green-500/50 bg-green-50/50">
@@ -231,26 +381,126 @@ export function Procesar() {
               </div>
             </div>
 
-            {resultado.codigos_faltantes.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                <p className="text-sm font-medium text-yellow-800 mb-2">
-                  Productos sin mapeo ({resultado.codigos_faltantes.length}):
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {resultado.codigos_faltantes.slice(0, 10).map((codigo: string, i: number) => (
-                    <span
-                      key={i}
-                      className="text-xs bg-yellow-100 px-2 py-1 rounded border border-yellow-300"
-                    >
-                      {codigo}
-                    </span>
-                  ))}
-                  {resultado.codigos_faltantes.length > 10 && (
-                    <span className="text-xs text-yellow-700">
-                      +{resultado.codigos_faltantes.length - 10} más
-                    </span>
+            {mapeos.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md overflow-hidden">
+                {/* Header colapsable */}
+                <button
+                  onClick={() => setMapeosExpandido(!mapeosExpandido)}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-yellow-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-yellow-700" />
+                    <p className="text-sm font-medium text-yellow-800">
+                      Productos sin mapeo ({mapeos.length}) - Haz clic para {mapeosExpandido ? 'ocultar' : 'mapear'}
+                    </p>
+                  </div>
+                  {mapeosExpandido ? (
+                    <ChevronUp className="h-5 w-5 text-yellow-700" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-yellow-700" />
                   )}
-                </div>
+                </button>
+
+                {/* Tabla de mapeos */}
+                {mapeosExpandido && (
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-yellow-800">
+                        Completa la cuenta contable para cada producto y luego guarda los mapeos para reprocesar el archivo.
+                      </p>
+                      <p className="text-xs text-yellow-700 font-medium">
+                        {mapeos.filter(m => m.cuenta_contable.trim()).length} de {mapeos.length} completos
+                      </p>
+                    </div>
+
+                    <div className="max-h-96 overflow-y-auto border border-yellow-300 rounded-md">
+                      <table className="w-full">
+                        <thead className="bg-yellow-100 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-yellow-900">
+                              Producto
+                            </th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-yellow-900">
+                              Cuenta Contable
+                            </th>
+                            <th className="px-4 py-2 w-16"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-yellow-200">
+                          {mapeos.map((mapeo, index) => (
+                            <tr key={index} className="hover:bg-yellow-50">
+                              <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                {mapeo.producto}
+                              </td>
+                              <td className="px-4 py-2">
+                                <Input
+                                  type="text"
+                                  value={mapeo.cuenta_contable}
+                                  onChange={(e) => handleUpdateMapeo(index, e.target.value)}
+                                  placeholder="702211"
+                                  className={`w-full ${
+                                    mapeo.cuenta_contable.trim()
+                                      ? 'border-green-500 focus:border-green-600'
+                                      : 'border-yellow-400'
+                                  }`}
+                                />
+                              </td>
+                              <td className="px-4 py-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEliminarMapeo(index)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleGuardarMapeos}
+                        disabled={guardandoMapeos || reprocesando}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        {guardandoMapeos && !reprocesando ? (
+                          <>
+                            <Save className="h-4 w-4 mr-2 animate-spin" />
+                            Guardando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Solo Guardar Mapeos
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleGuardarYReprocesar}
+                        disabled={guardandoMapeos || reprocesando}
+                        className="flex-1 bg-yellow-600 hover:bg-yellow-700"
+                      >
+                        {reprocesando ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Reprocesando...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Guardar y Reprocesar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
