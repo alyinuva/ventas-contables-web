@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Upload, Plus, Trash2, Edit2, X, Check } from 'lucide-react'
+import { Upload, Plus, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -11,8 +11,6 @@ export function Configuracion() {
   const [activeTab, setActiveTab] = useState<'productos' | 'combos'>('productos')
   const [productos, setProductos] = useState<ProductoCuenta[]>([])
   const [combos, setCombos] = useState<ComboSalto[]>([])
-  const [loading, setLoading] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
   // Nuevo producto/combo
@@ -27,15 +25,12 @@ export function Configuracion() {
   }, [])
 
   const cargarDatos = async () => {
-    setLoading(true)
     try {
       const [prods, cmbs] = await Promise.all([productosApi.getAll(true), combosApi.getAll(true)])
       setProductos(prods)
       setCombos(cmbs)
     } catch (error) {
       console.error('Error cargando datos:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -171,18 +166,18 @@ export function Configuracion() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <input
-                type="file"
-                accept=".xls,.xlsx"
-                onChange={handleImportarProductos}
-                className="hidden"
-                id="import-productos"
-              />
               <label htmlFor="import-productos">
-                <Button as="span" variant="outline">
+                <input
+                  type="file"
+                  accept=".xls,.xlsx"
+                  onChange={handleImportarProductos}
+                  className="hidden"
+                  id="import-productos"
+                />
+                <span className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer">
                   <Upload className="h-4 w-4 mr-2" />
                   Seleccionar Archivo
-                </Button>
+                </span>
               </label>
             </CardContent>
           </Card>
@@ -280,18 +275,18 @@ export function Configuracion() {
               <CardDescription>Carga un archivo con columnas: Combo, Salto</CardDescription>
             </CardHeader>
             <CardContent>
-              <input
-                type="file"
-                accept=".xls,.xlsx"
-                onChange={handleImportarCombos}
-                className="hidden"
-                id="import-combos"
-              />
               <label htmlFor="import-combos">
-                <Button as="span" variant="outline">
+                <input
+                  type="file"
+                  accept=".xls,.xlsx"
+                  onChange={handleImportarCombos}
+                  className="hidden"
+                  id="import-combos"
+                />
+                <span className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer">
                   <Upload className="h-4 w-4 mr-2" />
                   Seleccionar Archivo
-                </Button>
+                </span>
               </label>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Upload, Download, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
