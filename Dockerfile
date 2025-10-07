@@ -20,5 +20,5 @@ RUN mkdir -p /app/uploads
 # Exponer puerto
 EXPOSE 8000
 
-# Comando de inicio
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando de inicio - usa variable PORT de Railway o 8000 por defecto
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
