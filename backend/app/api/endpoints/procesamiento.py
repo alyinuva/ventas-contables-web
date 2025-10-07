@@ -24,13 +24,15 @@ async def procesar_archivo_ventas(
     subdiario_inicial: int = Form(..., ge=1),
     numero_comprobante_inicial: int = Form(..., ge=1, le=9999),
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
-    _: UploadFile = Depends(validate_excel_file)
+    current_user: Usuario = Depends(get_current_user)
 ):
     """
     Procesar archivo de ventas y generar asientos contables para Concar
     """
     try:
+        # Validar el archivo recibido
+        validate_excel_file(archivo)
+
         # Crear directorio de uploads si no existe
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 

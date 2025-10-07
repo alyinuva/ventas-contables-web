@@ -65,21 +65,21 @@ def get_current_admin_user(
     return current_user
 
 
-def validate_excel_file(file: UploadFile) -> UploadFile:
+def validate_excel_file(archivo: UploadFile) -> UploadFile:
     """
     Validar que el archivo sea un Excel válido
     """
-    if not file.filename:
+    if not archivo.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nombre de archivo inválido"
         )
 
-    extension = file.filename.split('.')[-1].lower()
+    extension = archivo.filename.split('.')[-1].lower()
     if extension not in ['xls', 'xlsx']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El archivo debe ser Excel (.xls o .xlsx)"
         )
 
-    return file
+    return archivo
