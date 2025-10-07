@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Database
-    DATABASE_URL: str = "sqlite:///./ventas_contables.db"
+    DATABASE_URL: str = "sqlite:////tmp/ventas_contables.db"
 
     # Security
     SECRET_KEY: str = "change-this-secret-key-in-production"
