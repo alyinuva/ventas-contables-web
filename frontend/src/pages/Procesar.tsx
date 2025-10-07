@@ -73,9 +73,14 @@ export function Procesar() {
     }
   }
 
-  const handleDescargar = () => {
+  const handleDescargar = async () => {
     if (resultado) {
-      window.open(procesamientoApi.descargar(resultado.id), '_blank')
+      try {
+        await procesamientoApi.descargar(resultado.id, resultado.nombre_archivo)
+      } catch (err) {
+        console.error('Error descargando archivo:', err)
+        setError('Error al descargar el archivo')
+      }
     }
   }
 

@@ -37,8 +37,13 @@ export function Historial() {
     }
   }
 
-  const handleDescargar = (id: number) => {
-    window.open(procesamientoApi.descargar(id), '_blank')
+  const handleDescargar = async (item: HistorialItem) => {
+    try {
+      await procesamientoApi.descargar(item.id, item.nombre_archivo)
+    } catch (error) {
+      console.error('Error descargando archivo:', error)
+      alert('Error al descargar el archivo')
+    }
   }
 
   const getEstadoBadge = (estado: string) => {
@@ -137,7 +142,7 @@ export function Historial() {
 
                 <div className="flex gap-2">
                   {item.estado === 'completado' && (
-                    <Button onClick={() => handleDescargar(item.id)} size="sm">
+                    <Button onClick={() => handleDescargar(item)} size="sm">
                       <Download className="h-4 w-4 mr-2" />
                       Descargar Excel
                     </Button>

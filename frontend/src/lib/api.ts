@@ -157,8 +157,21 @@ export const procesamientoApi = {
     return data
   },
 
-  descargar: (historialId: number): string => {
-    return `${API_URL}/procesamiento/descargar/${historialId}`
+  descargar: async (historialId: number, nombreArchivo?: string): Promise<void> => {
+    const response = await api.get(`/procesamiento/descargar/${historialId}`, {
+      responseType: 'blob',
+    })
+
+    // Crear un blob y descargarlo
+    const blob = new Blob([response.data])
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = nombreArchivo || `asientos_${historialId}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
   },
 }
 
