@@ -159,7 +159,7 @@ class ProcesamientoService:
                         comida.append([producto, costo_bolsa])
                         comida.append(['701112', 0])
                     else:
-                        comida.append([producto, cantidad])
+                        comida.append([producto, importe_linea])
 
                     if producto in self.diccionario_combos:
                         salto = self.diccionario_combos[producto]
