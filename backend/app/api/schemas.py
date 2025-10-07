@@ -60,7 +60,7 @@ class ComboSalto(ComboSaltoBase):
 
 # --- Schemas para Procesamiento ---
 class ProcesamientoRequest(BaseModel):
-    mes: str = Field(..., regex=r'^\d{2}$', description="Mes en formato 01-12")
+    mes: str = Field(..., pattern=r'^\d{2}$', description="Mes en formato 01-12")
     subdiario_inicial: int = Field(..., ge=1, description="Número de subdiario inicial")
     numero_comprobante_inicial: int = Field(..., ge=1, le=9999, description="Número de comprobante inicial")
 
