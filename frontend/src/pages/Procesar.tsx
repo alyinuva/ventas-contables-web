@@ -52,7 +52,22 @@ export function Procesar() {
       })
       setResultado(result)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al procesar el archivo')
+      // Manejar errores de validación de Pydantic (422)
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail
+        if (Array.isArray(detail)) {
+          // Error de validación de Pydantic
+          const errorMessages = detail.map((e: any) => e.msg).join(', ')
+          setError(errorMessages)
+        } else if (typeof detail === 'string') {
+          // Error simple
+          setError(detail)
+        } else {
+          setError('Error al procesar el archivo')
+        }
+      } else {
+        setError('Error al procesar el archivo')
+      }
     } finally {
       setLoading(false)
     }
