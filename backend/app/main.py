@@ -5,11 +5,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+import logging
 
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.init_db import init_db
 from app.api.endpoints import procesamiento, configuracion, historial, auth
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Inicializar base de datos y crear usuario admin
 init_db()

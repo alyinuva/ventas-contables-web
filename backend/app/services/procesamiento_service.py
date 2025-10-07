@@ -3,8 +3,12 @@ Servicio de procesamiento de archivos de ventas a asientos contables
 Migrado de la función process_files() original
 """
 import pandas as pd
+import logging
 from typing import Dict, List, Tuple, Set
 from app.utils.excel_reader import read_excel_file
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 
 class ProcesamientoService:
@@ -132,6 +136,11 @@ class ProcesamientoService:
                             costo_bolsa = importe_linea
                         else:
                             costo_bolsa = cantidad * 0.5
+
+                        logger.info(f"[BOLSA] Producto: {producto}, Cantidad: {cantidad}, Importe línea: {importe_linea}, Costo calculado: {costo_bolsa}")
+                        logger.info(f"[BOLSA] Agregando: ['{producto}', {costo_bolsa}]")
+                        logger.info(f"[BOLSA] Agregando: ['701112', 0]")
+
                         comida.append([producto, costo_bolsa])
                         comida.append(['701112', 0])
                     else:
@@ -212,6 +221,9 @@ class ProcesamientoService:
                         except:
                             clave = caracter18
                         extra = dic8caracter18Caracter.get(clave, '')
+
+                        logger.info(f"[ASIENTO] Producto: {comida_costo[0]}, Cuenta: {caracter18}, Extra: {extra}, ImporteOriginal: {comida_costo[1]}")
+
                         datos.append([
                             sub_diario_str, num_comprobante_str, fecha, "MN", cliente, 0,
                             "V", "S", "", caracter18, extra, '', 'H', comida_costo[1],
