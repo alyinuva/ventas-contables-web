@@ -117,7 +117,7 @@ class ProcesamientoService:
                 while True:
                     importe_linea = float('nan')
                     try:
-                        importe_linea = pd.to_numeric(df.iloc[i_detalle, 5], errors='coerce')
+                        importe_linea = pd.to_numeric(df.iloc[i_detalle, 6], errors='coerce')  # Col 6 = Total (cantidad × P.U.)
                         if pd.isna(importe_linea):
                             break
                         if str(df.iloc[i_detalle, 2]).strip() == "N/N":
@@ -139,9 +139,9 @@ class ProcesamientoService:
                         logger.info(f"  Col 1 ({df.columns[1]}): {df.iloc[i_detalle, 1]}")
                         logger.info(f"  Col 2 ({df.columns[2]} - Producto): {df.iloc[i_detalle, 2]}")
                         logger.info(f"  Col 3 ({df.columns[3]}): {df.iloc[i_detalle, 3]}")
-                        logger.info(f"  Col 4 ({df.columns[4]}): {df.iloc[i_detalle, 4]}")
-                        logger.info(f"  Col 5 ({df.columns[5]} - Importe línea): {df.iloc[i_detalle, 5]}")
-                        logger.info(f"  Col 6 ({df.columns[6]} - Cantidad leída): {df.iloc[i_detalle, 6]}")
+                        logger.info(f"  Col 4 ({df.columns[4]} - P.U.): {df.iloc[i_detalle, 4]}")
+                        logger.info(f"  Col 5 ({df.columns[5]}): {df.iloc[i_detalle, 5]}")
+                        logger.info(f"  Col 6 ({df.columns[6]} - Total/Importe línea): {df.iloc[i_detalle, 6]}")
                         if len(df.columns) > 7:
                             logger.info(f"  Col 7 ({df.columns[7]}): {df.iloc[i_detalle, 7]}")
                         if len(df.columns) > 8:
