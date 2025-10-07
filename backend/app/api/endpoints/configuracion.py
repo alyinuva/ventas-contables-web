@@ -116,8 +116,8 @@ async def importar_productos_cuentas(
             raise HTTPException(status_code=400, detail="El archivo debe tener al menos 2 columnas")
 
         # Asignar nombres a las primeras dos columnas
-        df.columns.values[0] = 'Producto'
-        df.columns.values[1] = 'Asiento'
+        col_names = ['Producto', 'Asiento'] + [f'Extra_{i}' for i in range(df.shape[1] - 2)]
+        df.columns = col_names[:df.shape[1]]
 
         # Importar
         count = 0
@@ -245,8 +245,8 @@ async def importar_combos_salto(
         if df.shape[1] < 2:
             raise HTTPException(status_code=400, detail="El archivo debe tener al menos 2 columnas")
 
-        df.columns.values[0] = 'Combo'
-        df.columns.values[1] = 'Salto'
+        col_names = ['Combo', 'Salto'] + [f'Extra_{i}' for i in range(df.shape[1] - 2)]
+        df.columns = col_names[:df.shape[1]]
 
         count = 0
         for _, row in df.iterrows():
