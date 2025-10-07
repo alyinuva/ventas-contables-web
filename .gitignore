@@ -14,10 +14,13 @@ ENV/
 *.sqlite
 *.sqlite3
 
-# Uploads
+# Uploads (pero mantener archivos de configuración)
 uploads/
 *.xls
 *.xlsx
+# Excepciones: archivos de configuración necesarios
+!DiccionarioCuentas2.xlsx
+!ComboSalto.xlsx
 
 # Environment
 .env
