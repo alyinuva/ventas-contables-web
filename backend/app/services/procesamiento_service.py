@@ -127,8 +127,9 @@ class ProcesamientoService:
                         break
 
                     if producto in ['Bolsa -', 'Bolsa']:
-                        comida.append([producto, 0.5])
-                        comida.append(['701112', cantidad])
+                        costo_bolsa = cantidad * 0.5
+                        comida.append([producto, costo_bolsa])
+                        comida.append(['701112', 0])
                     else:
                         comida.append([producto, cantidad])
 
