@@ -1,9 +1,52 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FileText, Settings, History, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { productosApi, combosApi, historialApi } from '@/lib/api'
+
+type DashboardStats = {
+  productos: number
+  combos: number
+  procesamientosMes: number
+}
 
 export function Dashboard() {
+  const [stats, setStats] = useState<DashboardStats>({ productos: 0, combos: 0, procesamientosMes: 0 })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const cargarEstadisticas = async () => {
+      try {
+        const [productos, combos, historial] = await Promise.all([
+          productosApi.getAll(true),
+          combosApi.getAll(true),
+          historialApi.getAll(),
+        ])
+
+        const ahora = new Date()
+        const procesamientosMes = historial.filter((item) => {
+          const fecha = new Date(item.created_at)
+          return fecha.getFullYear() === ahora.getFullYear() && fecha.getMonth() === ahora.getMonth()
+        }).length
+
+        setStats({
+          productos: productos.length,
+          combos: combos.length,
+          procesamientosMes,
+        })
+      } catch (error) {
+        console.error('Error cargando estadísticas del dashboard:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    cargarEstadisticas()
+  }, [])
+
+  const renderStat = (value: number) => (loading ? '—' : value.toLocaleString())
+
   return (
     <div className="space-y-6">
       <div>
@@ -21,7 +64,7 @@ export function Dashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,721</div>
+            <div className="text-2xl font-bold">{renderStat(stats.productos)}</div>
             <p className="text-xs text-muted-foreground">En diccionario de cuentas</p>
           </CardContent>
         </Card>
@@ -32,7 +75,7 @@ export function Dashboard() {
             <Settings className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">4</div>
+            <div className="text-2xl font-bold">{renderStat(stats.combos)}</div>
             <p className="text-xs text-muted-foreground">Reglas de salto</p>
           </CardContent>
         </Card>
@@ -43,7 +86,7 @@ export function Dashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{renderStat(stats.procesamientosMes)}</div>
             <p className="text-xs text-muted-foreground">Este mes</p>
           </CardContent>
         </Card>

@@ -10,7 +10,7 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, validate_excel_file
 from app.api import schemas
 from app.models.models import ProductoCuenta, ComboSalto, Usuario
 from app.utils.excel_reader import read_excel_file
@@ -100,6 +100,8 @@ async def importar_productos_cuentas(
 ):
     """Importar productos desde archivo Excel"""
     try:
+        validate_excel_file(archivo)
+
         # Guardar archivo temporal
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
         temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{archivo.filename}")
@@ -122,10 +124,16 @@ async def importar_productos_cuentas(
         # Importar
         count = 0
         for _, row in df.iterrows():
-            producto = str(row['Producto']).strip()
-            cuenta = str(row['Asiento']).strip()
+            raw_producto = row['Producto']
+            raw_cuenta = row['Asiento']
 
-            if pd.isna(producto) or pd.isna(cuenta):
+            if pd.isna(raw_producto) or pd.isna(raw_cuenta):
+                continue
+
+            producto = str(raw_producto).strip()
+            cuenta = str(raw_cuenta).strip()
+
+            if not producto or not cuenta or producto.lower() == 'nan' or cuenta.lower() == 'nan':
                 continue
 
             # Buscar si existe
@@ -233,6 +241,8 @@ async def importar_combos_salto(
 ):
     """Importar combos desde archivo Excel"""
     try:
+        validate_excel_file(archivo)
+
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
         temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{archivo.filename}")
 
@@ -250,11 +260,23 @@ async def importar_combos_salto(
 
         count = 0
         for _, row in df.iterrows():
-            combo = str(row['Combo']).strip()
-            salto = int(row['Salto'])
+            raw_combo = row['Combo']
+            raw_salto = row['Salto']
 
-            if pd.isna(combo) or pd.isna(salto):
+            if pd.isna(raw_combo) or pd.isna(raw_salto):
                 continue
+
+            combo = str(raw_combo).strip()
+            if not combo or combo.lower() == 'nan':
+                continue
+
+            try:
+                salto = int(raw_salto)
+            except (ValueError, TypeError):
+                try:
+                    salto = int(float(raw_salto))
+                except (ValueError, TypeError):
+                    continue
 
             existe = db.query(ComboSalto).filter(ComboSalto.combo == combo).first()
 

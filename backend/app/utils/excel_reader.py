@@ -19,27 +19,22 @@ def read_excel_file(file_path: str) -> pd.DataFrame:
 
     if ext == '.xls':
         try:
-            import xlrd
-            workbook = xlrd.open_workbook(file_path)
-            df = pd.read_excel(workbook)
-            return df
+            return pd.read_excel(file_path, engine='xlrd')
         except Exception as e:
-            if "Expected BOF record" in str(e) or "<html" in str(e).lower():
+            error_message = str(e)
+            if "Expected BOF record" in error_message or "<html" in error_message.lower():
                 try:
                     with open(file_path, "rb") as f:
-                        header = f.read(100).lower()
+                        header = f.read(512).lower()
                     if b"<html" in header:
                         df_list = pd.read_html(file_path, flavor='lxml')
                         if df_list:
                             return df_list[0]
-                        else:
-                            raise Exception("No se encontró ninguna tabla HTML en el archivo")
-                    else:
-                        raise Exception(f"Error al leer el archivo {file_path} con xlrd: {e}")
+                        raise Exception("No se encontró ninguna tabla HTML en el archivo")
+                    raise Exception(f"Error al leer el archivo {file_path} con xlrd: {e}")
                 except Exception as e_html:
                     raise Exception(f"Error al leer el archivo {file_path} como HTML: {e_html}")
-            else:
-                raise Exception(f"Error al leer el archivo {file_path} con xlrd: {e}")
+            raise Exception(f"Error al leer el archivo {file_path} con xlrd: {e}")
 
     elif ext == '.xlsx':
         try:
