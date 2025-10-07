@@ -122,10 +122,10 @@ async def importar_productos_cuentas(
         col_names = ['Producto', 'Asiento'] + [f'Extra_{i}' for i in range(df.shape[1] - 2)]
         df.columns = col_names[:df.shape[1]]
 
-        # Importar con commits por lotes
-        count = 0
+        # Importar con commits individuales para mayor confiabilidad
+        count_procesados = 0
+        count_guardados = 0
         errores = []
-        BATCH_SIZE = 100
 
         for idx, row in df.iterrows():
             try:
@@ -140,6 +140,8 @@ async def importar_productos_cuentas(
 
                 if not producto or not cuenta or producto.lower() == 'nan' or cuenta.lower() == 'nan':
                     continue
+
+                count_procesados += 1
 
                 # Buscar si existe
                 existe = db.query(ProductoCuenta).filter(
@@ -156,23 +158,23 @@ async def importar_productos_cuentas(
                         activo=True
                     )
                     db.add(nuevo)
-                count += 1
 
-                # Commit por lotes
-                if count % BATCH_SIZE == 0:
+                # Commit individual - más lento pero confiable
+                try:
                     db.commit()
+                    count_guardados += 1
+                except Exception as commit_error:
+                    db.rollback()
+                    errores.append(f"Fila {idx} ({producto}): {str(commit_error)}")
+                    continue
 
             except Exception as e:
                 errores.append(f"Fila {idx}: {str(e)}")
-                db.rollback()
                 continue
 
-        # Commit final
-        db.commit()
-
-        mensaje = f"{count} productos importados exitosamente"
+        mensaje = f"{count_guardados} productos guardados exitosamente de {count_procesados} procesados"
         if errores:
-            mensaje += f" (con {len(errores)} errores)"
+            mensaje += f" ({len(errores)} errores)"
 
         return schemas.Message(message=mensaje)
 
@@ -287,9 +289,9 @@ async def importar_combos_salto(
         col_names = ['Combo', 'Salto'] + [f'Extra_{i}' for i in range(df.shape[1] - 2)]
         df.columns = col_names[:df.shape[1]]
 
-        count = 0
+        count_procesados = 0
+        count_guardados = 0
         errores = []
-        BATCH_SIZE = 100
 
         for idx, row in df.iterrows():
             try:
@@ -312,6 +314,8 @@ async def importar_combos_salto(
                         errores.append(f"Fila {idx}: salto inválido '{raw_salto}'")
                         continue
 
+                count_procesados += 1
+
                 existe = db.query(ComboSalto).filter(ComboSalto.combo == combo).first()
 
                 if existe:
@@ -320,23 +324,23 @@ async def importar_combos_salto(
                 else:
                     nuevo = ComboSalto(combo=combo, salto=salto, activo=True)
                     db.add(nuevo)
-                count += 1
 
-                # Commit por lotes
-                if count % BATCH_SIZE == 0:
+                # Commit individual - más lento pero confiable
+                try:
                     db.commit()
+                    count_guardados += 1
+                except Exception as commit_error:
+                    db.rollback()
+                    errores.append(f"Fila {idx} ({combo}): {str(commit_error)}")
+                    continue
 
             except Exception as e:
                 errores.append(f"Fila {idx}: {str(e)}")
-                db.rollback()
                 continue
 
-        # Commit final
-        db.commit()
-
-        mensaje = f"{count} combos importados exitosamente"
+        mensaje = f"{count_guardados} combos guardados exitosamente de {count_procesados} procesados"
         if errores:
-            mensaje += f" (con {len(errores)} errores)"
+            mensaje += f" ({len(errores)} errores)"
 
         return schemas.Message(message=mensaje)
 
