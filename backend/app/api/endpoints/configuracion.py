@@ -99,12 +99,13 @@ async def importar_productos_cuentas(
     current_user: Usuario = Depends(get_current_user)
 ):
     """Importar productos desde archivo Excel"""
+    temp_path = None
     try:
         validate_excel_file(archivo)
 
         # Guardar archivo temporal
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-        temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{archivo.filename}")
+        temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{archivo.filename}")
 
         with open(temp_path, "wb") as f:
             content = await archivo.read()
@@ -121,47 +122,74 @@ async def importar_productos_cuentas(
         col_names = ['Producto', 'Asiento'] + [f'Extra_{i}' for i in range(df.shape[1] - 2)]
         df.columns = col_names[:df.shape[1]]
 
-        # Importar
+        # Importar con commits por lotes
         count = 0
-        for _, row in df.iterrows():
-            raw_producto = row['Producto']
-            raw_cuenta = row['Asiento']
+        errores = []
+        BATCH_SIZE = 100
 
-            if pd.isna(raw_producto) or pd.isna(raw_cuenta):
+        for idx, row in df.iterrows():
+            try:
+                raw_producto = row['Producto']
+                raw_cuenta = row['Asiento']
+
+                if pd.isna(raw_producto) or pd.isna(raw_cuenta):
+                    continue
+
+                producto = str(raw_producto).strip()
+                cuenta = str(raw_cuenta).strip()
+
+                if not producto or not cuenta or producto.lower() == 'nan' or cuenta.lower() == 'nan':
+                    continue
+
+                # Buscar si existe
+                existe = db.query(ProductoCuenta).filter(
+                    ProductoCuenta.producto == producto
+                ).first()
+
+                if existe:
+                    existe.cuenta_contable = cuenta
+                    existe.activo = True
+                else:
+                    nuevo = ProductoCuenta(
+                        producto=producto,
+                        cuenta_contable=cuenta,
+                        activo=True
+                    )
+                    db.add(nuevo)
+                count += 1
+
+                # Commit por lotes
+                if count % BATCH_SIZE == 0:
+                    db.commit()
+
+            except Exception as e:
+                errores.append(f"Fila {idx}: {str(e)}")
+                db.rollback()
                 continue
 
-            producto = str(raw_producto).strip()
-            cuenta = str(raw_cuenta).strip()
-
-            if not producto or not cuenta or producto.lower() == 'nan' or cuenta.lower() == 'nan':
-                continue
-
-            # Buscar si existe
-            existe = db.query(ProductoCuenta).filter(
-                ProductoCuenta.producto == producto
-            ).first()
-
-            if existe:
-                existe.cuenta_contable = cuenta
-                existe.activo = True
-            else:
-                nuevo = ProductoCuenta(
-                    producto=producto,
-                    cuenta_contable=cuenta,
-                    activo=True
-                )
-                db.add(nuevo)
-            count += 1
-
+        # Commit final
         db.commit()
 
-        # Limpiar archivo temporal
-        os.remove(temp_path)
+        mensaje = f"{count} productos importados exitosamente"
+        if errores:
+            mensaje += f" (con {len(errores)} errores)"
 
-        return schemas.Message(message=f"{count} productos importados exitosamente")
+        return schemas.Message(message=mensaje)
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al importar: {str(e)}")
+        db.rollback()
+        error_msg = f"Error al importar productos: {str(e)}"
+        print(f"[ERROR] {error_msg}")  # Log para Railway
+        raise HTTPException(status_code=500, detail=error_msg)
+    finally:
+        # Limpiar archivo temporal
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as e:
+                print(f"[WARNING] No se pudo eliminar archivo temporal: {e}")
 
 
 # --- Endpoints para ComboSalto ---
@@ -240,11 +268,12 @@ async def importar_combos_salto(
     current_user: Usuario = Depends(get_current_user)
 ):
     """Importar combos desde archivo Excel"""
+    temp_path = None
     try:
         validate_excel_file(archivo)
 
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-        temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{archivo.filename}")
+        temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{archivo.filename}")
 
         with open(temp_path, "wb") as f:
             content = await archivo.read()
@@ -259,39 +288,69 @@ async def importar_combos_salto(
         df.columns = col_names[:df.shape[1]]
 
         count = 0
-        for _, row in df.iterrows():
-            raw_combo = row['Combo']
-            raw_salto = row['Salto']
+        errores = []
+        BATCH_SIZE = 100
 
-            if pd.isna(raw_combo) or pd.isna(raw_salto):
-                continue
-
-            combo = str(raw_combo).strip()
-            if not combo or combo.lower() == 'nan':
-                continue
-
+        for idx, row in df.iterrows():
             try:
-                salto = int(raw_salto)
-            except (ValueError, TypeError):
-                try:
-                    salto = int(float(raw_salto))
-                except (ValueError, TypeError):
+                raw_combo = row['Combo']
+                raw_salto = row['Salto']
+
+                if pd.isna(raw_combo) or pd.isna(raw_salto):
                     continue
 
-            existe = db.query(ComboSalto).filter(ComboSalto.combo == combo).first()
+                combo = str(raw_combo).strip()
+                if not combo or combo.lower() == 'nan':
+                    continue
 
-            if existe:
-                existe.salto = salto
-                existe.activo = True
-            else:
-                nuevo = ComboSalto(combo=combo, salto=salto, activo=True)
-                db.add(nuevo)
-            count += 1
+                try:
+                    salto = int(raw_salto)
+                except (ValueError, TypeError):
+                    try:
+                        salto = int(float(raw_salto))
+                    except (ValueError, TypeError):
+                        errores.append(f"Fila {idx}: salto inválido '{raw_salto}'")
+                        continue
 
+                existe = db.query(ComboSalto).filter(ComboSalto.combo == combo).first()
+
+                if existe:
+                    existe.salto = salto
+                    existe.activo = True
+                else:
+                    nuevo = ComboSalto(combo=combo, salto=salto, activo=True)
+                    db.add(nuevo)
+                count += 1
+
+                # Commit por lotes
+                if count % BATCH_SIZE == 0:
+                    db.commit()
+
+            except Exception as e:
+                errores.append(f"Fila {idx}: {str(e)}")
+                db.rollback()
+                continue
+
+        # Commit final
         db.commit()
-        os.remove(temp_path)
 
-        return schemas.Message(message=f"{count} combos importados exitosamente")
+        mensaje = f"{count} combos importados exitosamente"
+        if errores:
+            mensaje += f" (con {len(errores)} errores)"
 
+        return schemas.Message(message=mensaje)
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al importar: {str(e)}")
+        db.rollback()
+        error_msg = f"Error al importar combos: {str(e)}"
+        print(f"[ERROR] {error_msg}")  # Log para Railway
+        raise HTTPException(status_code=500, detail=error_msg)
+    finally:
+        # Limpiar archivo temporal
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as e:
+                print(f"[WARNING] No se pudo eliminar archivo temporal: {e}")

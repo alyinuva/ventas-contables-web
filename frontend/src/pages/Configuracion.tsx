@@ -84,11 +84,13 @@ export function Configuracion() {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      await productosApi.importar(file)
+      const result = await productosApi.importar(file)
       cargarDatos()
-      alert('Productos importados exitosamente')
-    } catch (error) {
+      alert(result.message || 'Productos importados exitosamente')
+    } catch (error: any) {
       console.error('Error importando productos:', error)
+      const errorMessage = error.response?.data?.detail || error.message || 'Error desconocido al importar productos'
+      alert(`Error: ${errorMessage}`)
     }
   }
 
@@ -96,11 +98,13 @@ export function Configuracion() {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      await combosApi.importar(file)
+      const result = await combosApi.importar(file)
       cargarDatos()
-      alert('Combos importados exitosamente')
-    } catch (error) {
+      alert(result.message || 'Combos importados exitosamente')
+    } catch (error: any) {
       console.error('Error importando combos:', error)
+      const errorMessage = error.response?.data?.detail || error.message || 'Error desconocido al importar combos'
+      alert(`Error: ${errorMessage}`)
     }
   }
 
