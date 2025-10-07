@@ -111,9 +111,10 @@ class ProcesamientoService:
 
                 comida = []
                 while True:
+                    importe_linea = float('nan')
                     try:
-                        value = pd.to_numeric(df.iloc[i_detalle, 5], errors='coerce')
-                        if pd.isna(value):
+                        importe_linea = pd.to_numeric(df.iloc[i_detalle, 5], errors='coerce')
+                        if pd.isna(importe_linea):
                             break
                         if str(df.iloc[i_detalle, 2]).strip() == "N/N":
                             break
@@ -127,7 +128,10 @@ class ProcesamientoService:
                         break
 
                     if producto in ['Bolsa -', 'Bolsa']:
-                        costo_bolsa = cantidad * 0.5
+                        if pd.notna(importe_linea):
+                            costo_bolsa = importe_linea
+                        else:
+                            costo_bolsa = cantidad * 0.5
                         comida.append([producto, costo_bolsa])
                         comida.append(['701112', 0])
                     else:
