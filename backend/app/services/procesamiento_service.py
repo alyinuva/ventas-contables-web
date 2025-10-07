@@ -132,6 +132,21 @@ class ProcesamientoService:
                         break
 
                     if producto in ['Bolsa -', 'Bolsa']:
+                        # Log completo de la fila para debugging
+                        logger.info(f"[BOLSA DEBUG] Fila completa {i_detalle}:")
+                        logger.info(f"  Headers: {list(df.columns[:10])}")
+                        logger.info(f"  Col 0 ({df.columns[0]}): {df.iloc[i_detalle, 0]}")
+                        logger.info(f"  Col 1 ({df.columns[1]}): {df.iloc[i_detalle, 1]}")
+                        logger.info(f"  Col 2 ({df.columns[2]} - Producto): {df.iloc[i_detalle, 2]}")
+                        logger.info(f"  Col 3 ({df.columns[3]}): {df.iloc[i_detalle, 3]}")
+                        logger.info(f"  Col 4 ({df.columns[4]}): {df.iloc[i_detalle, 4]}")
+                        logger.info(f"  Col 5 ({df.columns[5]} - Importe línea): {df.iloc[i_detalle, 5]}")
+                        logger.info(f"  Col 6 ({df.columns[6]} - Cantidad leída): {df.iloc[i_detalle, 6]}")
+                        if len(df.columns) > 7:
+                            logger.info(f"  Col 7 ({df.columns[7]}): {df.iloc[i_detalle, 7]}")
+                        if len(df.columns) > 8:
+                            logger.info(f"  Col 8 ({df.columns[8]}): {df.iloc[i_detalle, 8]}")
+
                         if pd.notna(importe_linea):
                             costo_bolsa = importe_linea
                         else:
