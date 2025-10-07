@@ -58,13 +58,23 @@ class ProcesamientoService:
         """
         # Cargar archivo de ventas
         df = read_excel_file(archivo_ventas_path)
-        df.columns = [
+
+        # Nombres de columnas esperados (pueden variar entre archivos)
+        expected_columns = [
             "Fecha", "Hora", "Mesa", "Caja", "Turno", "Cliente", "DNIRUC",
             "TipoDoc", "SerieDoc", "NumDoc", "PagosA", "PagosB", "Retencion", "Propina",
             "Subtotal", "IGV", "Impuestos", "Total", "Descuento", "Tipo", "Estado",
             "UsuarioAnulador", "PerfilAnulador", "UsuarioAprobador", "PerfilAprobador",
             "Motivo", "CanalVenta", "CanalDelivery", "RetornoStock", "UsuarioRegistrado", "PerfilRegistrador"
         ]
+
+        # Asignar nombres de columnas dinámicamente según el número real de columnas
+        num_cols = len(df.columns)
+        if num_cols <= len(expected_columns):
+            df.columns = expected_columns[:num_cols]
+        else:
+            # Si hay más columnas de las esperadas, agregar nombres genéricos
+            df.columns = expected_columns + [f"Extra_{i}" for i in range(num_cols - len(expected_columns))]
 
         # Extracción de información
         info = []
