@@ -40,3 +40,5 @@ build/
 
 # Claude
 .claude/
+.vercel/
+.env.local
