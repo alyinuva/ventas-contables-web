@@ -2,9 +2,12 @@
 Servicio de procesamiento de archivos de ventas a asientos contables
 Migrado de la función process_files() original
 """
-import pandas as pd
 import logging
+import re
 from typing import Dict, List, Tuple, Set
+
+import pandas as pd
+
 from app.utils.excel_reader import read_excel_file
 
 # Configurar logger
@@ -16,10 +19,56 @@ class ProcesamientoService:
     Servicio para procesar archivos de ventas y generar asientos contables para Concar
     """
 
-    def __init__(self, diccionario_cuentas: Dict[str, str], diccionario_combos: Dict[str, int]):
+    def __init__(self, diccionario_cuentas: Dict[str, str]):
         self.diccionario_cuentas = diccionario_cuentas
-        self.diccionario_combos = diccionario_combos
+        self.diccionario_cuentas_normalizado = {
+            self._normalizar_texto(producto): cuenta
+            for producto, cuenta in diccionario_cuentas.items()
+        }
         self.missing_codes: Set[str] = set()
+
+    @staticmethod
+    def _limpiar_texto(valor) -> str:
+        """Normalizar texto leído desde Excel sin alterar su significado."""
+        if pd.isna(valor):
+            return ""
+        return re.sub(r"\s+", " ", str(valor).replace("\xa0", " ")).strip()
+
+    @classmethod
+    def _normalizar_texto(cls, valor) -> str:
+        return cls._limpiar_texto(valor).casefold()
+
+    @staticmethod
+    def _es_fila_documento(df: pd.DataFrame, i: int) -> bool:
+        if i >= df.shape[0] or df.shape[1] <= 20:
+            return False
+        return str(df.iloc[i, 20]).strip() in ["Activa", "Anulada"]
+
+    @staticmethod
+    def _es_bolsa(producto: str) -> bool:
+        return producto.rstrip(" -").casefold() == "bolsa"
+
+    def _obtener_cuenta_contable(self, producto: str):
+        if producto in self.diccionario_cuentas:
+            return self.diccionario_cuentas[producto]
+
+        producto_normalizado = self._normalizar_texto(producto)
+        cuenta = self.diccionario_cuentas_normalizado.get(producto_normalizado)
+        if cuenta is not None:
+            return cuenta
+
+        if not producto_normalizado.startswith("(combo)"):
+            return None
+
+        cuentas_por_prefijo = {
+            cuenta
+            for producto_diccionario, cuenta in self.diccionario_cuentas_normalizado.items()
+            if producto_diccionario.startswith(f"{producto_normalizado} ")
+        }
+        if len(cuentas_por_prefijo) == 1:
+            return next(iter(cuentas_por_prefijo))
+
+        return None
 
     @staticmethod
     def get_DNIRUC_name(df: pd.DataFrame, i: int) -> Tuple[str, str]:
@@ -114,24 +163,28 @@ class ProcesamientoService:
                     continue
 
                 comida = []
-                while True:
-                    importe_linea = float('nan')
-                    try:
-                        importe_linea = pd.to_numeric(df.iloc[i_detalle, 6], errors='coerce')  # Col 6 = Total (cantidad × P.U.)
-                        if pd.isna(importe_linea):
-                            break
-                        if str(df.iloc[i_detalle, 2]).strip() == "N/N":
-                            break
-                    except:
+                while i_detalle < num_rows:
+                    if self._es_fila_documento(df, i_detalle):
                         break
 
-                    producto = str(df.iloc[i_detalle, 2]).strip()
+                    producto = self._limpiar_texto(df.iloc[i_detalle, 2])
+                    if not producto:
+                        i_detalle += 1
+                        continue
+                    if producto == "N/N":
+                        break
+
+                    importe_linea = pd.to_numeric(df.iloc[i_detalle, 6], errors='coerce')  # Col 6 = Total (cantidad × P.U.)
                     cantidad = df.iloc[i_detalle, 0]  # Col 0 contiene la cantidad en la sección de detalle
                     cantidad = pd.to_numeric(cantidad, errors='coerce')
-                    if pd.isna(cantidad):
-                        break
 
-                    if producto in ['Bolsa -', 'Bolsa']:
+                    # Las filas internas de los combos no tienen cantidad ni total; no son
+                    # productos vendibles y no deben cortar la lectura del resto del detalle.
+                    if pd.isna(importe_linea) or pd.isna(cantidad):
+                        i_detalle += 1
+                        continue
+
+                    if self._es_bolsa(producto):
                         # Log completo de la fila para debugging
                         logger.info(f"[BOLSA DEBUG] Fila completa {i_detalle}:")
                         logger.info(f"  Headers: {list(df.columns[:10])}")
@@ -161,11 +214,7 @@ class ProcesamientoService:
                     else:
                         comida.append([producto, importe_linea])
 
-                    if producto in self.diccionario_combos:
-                        salto = self.diccionario_combos[producto]
-                        i_detalle += salto
-                    else:
-                        i_detalle += 1
+                    i_detalle += 1
 
                 info.append([datos_boleta, comida])
             i += 1
@@ -226,11 +275,12 @@ class ProcesamientoService:
 
                 # Asientos para los productos vendidos
                 for comida_costo in boleta[1]:
-                    if comida_costo[0] not in self.diccionario_cuentas:
+                    cuenta_contable = self._obtener_cuenta_contable(comida_costo[0])
+                    if cuenta_contable is None:
                         print("Código no encontrado en DiccionarioCuentas:", comida_costo[0])
                         self.missing_codes.add(comida_costo[0])
                     else:
-                        caracter18 = self.diccionario_cuentas[comida_costo[0]]
+                        caracter18 = cuenta_contable
                         try:
                             clave = int(caracter18) if str(caracter18).isdigit() else caracter18
                         except:

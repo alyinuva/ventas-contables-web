@@ -3,24 +3,22 @@ import { Link } from 'react-router-dom'
 import { FileText, Settings, History, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { productosApi, combosApi, historialApi } from '@/lib/api'
+import { productosApi, historialApi } from '@/lib/api'
 
 type DashboardStats = {
   productos: number
-  combos: number
   procesamientosMes: number
 }
 
 export function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats>({ productos: 0, combos: 0, procesamientosMes: 0 })
+  const [stats, setStats] = useState<DashboardStats>({ productos: 0, procesamientosMes: 0 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const cargarEstadisticas = async () => {
       try {
-        const [productos, combos, historial] = await Promise.all([
+        const [productos, historial] = await Promise.all([
           productosApi.getAll(true),
-          combosApi.getAll(true),
           historialApi.getAll(),
         ])
 
@@ -32,7 +30,6 @@ export function Dashboard() {
 
         setStats({
           productos: productos.length,
-          combos: combos.length,
           procesamientosMes,
         })
       } catch (error) {
@@ -57,7 +54,7 @@ export function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Productos Registrados</CardTitle>
@@ -66,17 +63,6 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{renderStat(stats.productos)}</div>
             <p className="text-xs text-muted-foreground">En diccionario de cuentas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Combos Configurados</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{renderStat(stats.combos)}</div>
-            <p className="text-xs text-muted-foreground">Reglas de salto</p>
           </CardContent>
         </Card>
 
@@ -118,7 +104,7 @@ export function Dashboard() {
               Gestionar Configuración
             </CardTitle>
             <CardDescription>
-              Administra productos, cuentas contables y reglas de combos
+              Administra productos y cuentas contables
             </CardDescription>
           </CardHeader>
           <CardContent>

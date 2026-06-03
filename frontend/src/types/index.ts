@@ -17,21 +17,6 @@ export interface ProductoCuentaCreate {
   activo?: boolean
 }
 
-export interface ComboSalto {
-  id: number
-  combo: string
-  salto: number
-  activo: boolean
-  created_at: string
-  updated_at?: string
-}
-
-export interface ComboSaltoCreate {
-  combo: string
-  salto: number
-  activo?: boolean
-}
-
 export interface ProcesamientoRequest {
   mes: string
   subdiario_inicial: number

@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.api.deps import validate_excel_file, get_current_user
 from app.api import schemas
-from app.models.models import ProcesamientoHistorial, ProductoCuenta, ComboSalto, Usuario
+from app.models.models import ProcesamientoHistorial, ProductoCuenta, Usuario
 from app.services.procesamiento_service import ProcesamientoService
 
 router = APIRouter()
@@ -45,15 +45,13 @@ async def procesar_archivo_ventas(
             content = await archivo.read()
             f.write(content)
 
-        # Obtener diccionarios activos de la base de datos
+        # Obtener diccionario activo de productos/cuentas de la base de datos
         productos_cuentas = db.query(ProductoCuenta).filter(ProductoCuenta.activo == True).all()
-        combos_salto = db.query(ComboSalto).filter(ComboSalto.activo == True).all()
 
         diccionario_cuentas = {pc.producto: pc.cuenta_contable for pc in productos_cuentas}
-        diccionario_combos = {cs.combo: cs.salto for cs in combos_salto}
 
         # Procesar archivo
-        servicio = ProcesamientoService(diccionario_cuentas, diccionario_combos)
+        servicio = ProcesamientoService(diccionario_cuentas)
         df_resultado, codigos_faltantes = servicio.procesar_archivo_ventas(
             input_path,
             mes,

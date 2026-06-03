@@ -9,8 +9,6 @@ import type {
   Usuario,
   ProductoCuenta,
   ProductoCuentaCreate,
-  ComboSalto,
-  ComboSaltoCreate,
   ProcesamientoResponse,
   HistorialItem,
 } from '@/types'
@@ -96,39 +94,6 @@ export const productosApi = {
     const formData = new FormData()
     formData.append('archivo', file)
     const { data } = await api.post('/configuracion/productos-cuentas/importar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    return data
-  },
-}
-
-// --- Combos ---
-export const combosApi = {
-  getAll: async (activo?: boolean): Promise<ComboSalto[]> => {
-    const { data } = await api.get<ComboSalto[]>('/configuracion/combos-salto', {
-      params: { activo },
-    })
-    return data
-  },
-
-  create: async (combo: ComboSaltoCreate): Promise<ComboSalto> => {
-    const { data } = await api.post<ComboSalto>('/configuracion/combos-salto', combo)
-    return data
-  },
-
-  update: async (id: number, combo: Partial<ComboSaltoCreate>): Promise<ComboSalto> => {
-    const { data } = await api.put<ComboSalto>(`/configuracion/combos-salto/${id}`, combo)
-    return data
-  },
-
-  delete: async (id: number): Promise<void> => {
-    await api.delete(`/configuracion/combos-salto/${id}`)
-  },
-
-  importar: async (file: File): Promise<{ message: string }> => {
-    const formData = new FormData()
-    formData.append('archivo', file)
-    const { data } = await api.post('/configuracion/combos-salto/importar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     return data
