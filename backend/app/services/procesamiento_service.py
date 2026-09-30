@@ -46,7 +46,8 @@ class ProcesamientoService:
 
     @staticmethod
     def _es_bolsa(producto: str) -> bool:
-        return producto.rstrip(" -").casefold() == "bolsa"
+        # "Bolsa" en La Canga/Cocorocos, "Bolsa de Plástico" en Rico's/Pizzamía
+        return producto.rstrip(" -").casefold() in ("bolsa", "bolsa de plástico")
 
     def _obtener_cuenta_contable(self, producto: str):
         if producto in self.diccionario_cuentas:
