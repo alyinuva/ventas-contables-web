@@ -65,12 +65,21 @@ class ProcesamientoRequest(BaseModel):
     numero_comprobante_inicial: int = Field(..., ge=1, le=9999, description="Número de comprobante inicial")
 
 
+class AvisoComprobante(BaseModel):
+    tipo: str  # "no_leido" o "no_cuadra"
+    comprobante: str
+    fecha: str
+    total: float
+    detalle: str
+
+
 class ProcesamientoResponse(BaseModel):
     id: int
     nombre_archivo: str
     total_registros_procesados: int
     total_asientos_generados: int
     codigos_faltantes: List[str]
+    avisos: List[AvisoComprobante] = []
     archivo_salida_url: str
     mensaje: str
 

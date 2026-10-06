@@ -26,6 +26,8 @@ class ProcesamientoService:
             for producto, cuenta in diccionario_cuentas.items()
         }
         self.missing_codes: Set[str] = set()
+        # Comprobantes que no se pudieron leer o cuyo asiento no cuadra, para mostrarlos al usuario
+        self.avisos: List[Dict] = []
 
     @staticmethod
     def _limpiar_texto(valor) -> str:
@@ -80,6 +82,27 @@ class ProcesamientoService:
             return "00000000", "Clientes Varios"
         else:
             return dniruc, cliente
+
+    @staticmethod
+    def _formatear_fecha(valor) -> str:
+        fecha = pd.to_datetime(valor, errors='coerce', dayfirst=True)
+        return fecha.strftime('%d/%m/%Y') if pd.notna(fecha) else str(valor)
+
+    @staticmethod
+    def _numero(valor) -> float:
+        if isinstance(valor, str):
+            valor = valor.replace(",", "")
+        numero = pd.to_numeric(valor, errors='coerce')
+        return 0.0 if pd.isna(numero) else float(numero)
+
+    def _agregar_aviso(self, tipo: str, datos_boleta: Dict, detalle: str):
+        self.avisos.append({
+            "tipo": tipo,
+            "comprobante": datos_boleta["Num"][-4:] + "-" + str(datos_boleta["Serie"]),
+            "fecha": self._formatear_fecha(datos_boleta["Fecha"]),
+            "total": round(self._numero(datos_boleta["Total"]), 2),
+            "detalle": detalle,
+        })
 
     @staticmethod
     def tipo_doc_func(serie: str) -> str:
@@ -148,18 +171,28 @@ class ProcesamientoService:
                     "Num": str(df.iloc[i, 8]),
                     "Serie": str(df.iloc[i, 9]),
                     "Total": df.iloc[i, 17],
+                    "Descuento": df.iloc[i, 18],
                     "Estado": estado
                 }
 
-                # Buscar la fila que contenga "Detalle de venta"
+                # Buscar la fila que contenga "Detalle de venta". Entre el comprobante y su
+                # detalle va una fila por cada pago, así que puede estar muchas filas más abajo
+                # (p. ej. una boleta pagada en 115 partes de céntimos): se busca hasta el
+                # siguiente comprobante.
                 found = False
-                for n in range(7):
-                    if str(df.iloc[i + n, 0]).strip() == "Detalle de venta":
-                        i_detalle = i + n + 2
+                n = i
+                while n < num_rows and (n == i or not self._es_fila_documento(df, n)):
+                    if str(df.iloc[n, 0]).strip() == "Detalle de venta":
+                        i_detalle = n + 2
                         found = True
                         break
+                    n += 1
 
                 if not found:
+                    self._agregar_aviso(
+                        "no_leido", datos_boleta,
+                        "No se encontró el detalle de venta: el comprobante no se incluyó en los asientos."
+                    )
                     i += 1
                     continue
 
@@ -275,12 +308,16 @@ class ProcesamientoService:
                 ])
 
                 # Asientos para los productos vendidos
+                total_haber = 0.0
+                falta_cuenta = False
                 for comida_costo in boleta[1]:
                     cuenta_contable = self._obtener_cuenta_contable(comida_costo[0])
                     if cuenta_contable is None:
                         print("Código no encontrado en DiccionarioCuentas:", comida_costo[0])
                         self.missing_codes.add(comida_costo[0])
+                        falta_cuenta = True
                     else:
+                        total_haber += self._numero(comida_costo[1])
                         caracter18 = cuenta_contable
                         try:
                             clave = int(caracter18) if str(caracter18).isdigit() else caracter18
@@ -296,6 +333,19 @@ class ProcesamientoService:
                             "", "", tipoDoc,
                             boleta[0]["Num"][-4:] + "-" + str(boleta[0]["Serie"]), fecha, fecha
                         ])
+
+                # Si falta una cuenta, el asiento ya se reporta en los códigos faltantes
+                total_debe = self._numero(boleta[0]["Total"])
+                diferencia = round(total_debe - total_haber, 2)
+                if not falta_cuenta and abs(diferencia) >= 0.01:
+                    detalle = (
+                        f"El asiento no cuadra: Debe S/ {total_debe:.2f}, "
+                        f"Haber S/ {total_haber:.2f} (diferencia S/ {diferencia:.2f})."
+                    )
+                    descuento = self._numero(boleta[0]["Descuento"])
+                    if descuento:
+                        detalle += f" El reporte muestra un descuento de S/ {descuento:.2f}."
+                    self._agregar_aviso("no_cuadra", boleta[0], detalle)
 
         # Crear DataFrame
         contable = pd.DataFrame(datos)

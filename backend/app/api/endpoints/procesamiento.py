@@ -91,8 +91,12 @@ async def procesar_archivo_ventas(
             total_registros_procesados=len(df_resultado),
             total_asientos_generados=len(df_resultado),
             codigos_faltantes=codigos_faltantes,
+            avisos=servicio.avisos,
             archivo_salida_url=f"/api/v1/procesamiento/descargar/{historial.id}",
-            mensaje="Procesamiento completado exitosamente"
+            mensaje=(
+                f"Procesamiento completado con {len(servicio.avisos)} comprobantes por revisar"
+                if servicio.avisos else "Procesamiento completado exitosamente"
+            )
         )
 
     except Exception as e:

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { procesamientoApi, productosApi } from '@/lib/api'
+import type { AvisoComprobante } from '@/types'
 
 interface ProductoMapeo {
   producto: string
@@ -27,6 +28,14 @@ export function Procesar() {
   const [guardandoMapeos, setGuardandoMapeos] = useState(false)
   const [reprocesando, setReprocesando] = useState(false)
   const [mensajeExito, setMensajeExito] = useState('')
+  const [avisosExpandido, setAvisosExpandido] = useState(true)
+
+  // Comprobantes que no se pudieron leer o cuyo asiento no cuadra; los no leídos van primero
+  const avisos: AvisoComprobante[] = [...(resultado?.avisos ?? [])].sort(
+    (a: AvisoComprobante, b: AvisoComprobante) => Number(b.tipo === 'no_leido') - Number(a.tipo === 'no_leido')
+  )
+  const avisosNoLeidos = avisos.filter(a => a.tipo === 'no_leido').length
+  const avisosNoCuadran = avisos.length - avisosNoLeidos
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -66,6 +75,7 @@ export function Procesar() {
         numero_comprobante_inicial: parseInt(comprobante),
       })
       setResultado(result)
+      setAvisosExpandido(true)
 
       // Inicializar mapeos si hay códigos faltantes
       if (result.codigos_faltantes && result.codigos_faltantes.length > 0) {
@@ -356,10 +366,17 @@ export function Procesar() {
       {resultado && (
         <Card className="border-green-500/50 bg-green-50/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-700">
-              <CheckCircle2 className="h-6 w-6" />
-              Procesamiento Completado
-            </CardTitle>
+            {avisos.length > 0 ? (
+              <CardTitle className="flex items-center gap-2 text-amber-700">
+                <AlertCircle className="h-6 w-6" />
+                Procesamiento completado: {avisos.length} comprobante{avisos.length === 1 ? '' : 's'} por revisar
+              </CardTitle>
+            ) : (
+              <CardTitle className="flex items-center gap-2 text-green-700">
+                <CheckCircle2 className="h-6 w-6" />
+                Procesamiento Completado
+              </CardTitle>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -379,7 +396,94 @@ export function Procesar() {
                 <p className="text-sm text-gray-600">Códigos faltantes</p>
                 <p className="font-medium">{resultado.codigos_faltantes.length}</p>
               </div>
+              <div>
+                <p className="text-sm text-gray-600">Comprobantes por revisar</p>
+                <p className={`font-medium ${avisos.length > 0 ? 'text-amber-700' : ''}`}>{avisos.length}</p>
+              </div>
             </div>
+
+            {avisos.length > 0 && (
+              <div
+                className={`rounded-md overflow-hidden border ${
+                  avisosNoLeidos > 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
+                }`}
+              >
+                <button
+                  onClick={() => setAvisosExpandido(!avisosExpandido)}
+                  className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${
+                    avisosNoLeidos > 0 ? 'hover:bg-red-100' : 'hover:bg-amber-100'
+                  }`}
+                >
+                  <div className="flex items-start gap-2 text-left">
+                    <AlertCircle
+                      className={`h-5 w-5 flex-shrink-0 ${avisosNoLeidos > 0 ? 'text-red-700' : 'text-amber-700'}`}
+                    />
+                    <div>
+                      <p className={`text-sm font-medium ${avisosNoLeidos > 0 ? 'text-red-800' : 'text-amber-800'}`}>
+                        Comprobantes por revisar ({avisos.length})
+                      </p>
+                      <p className={`text-xs mt-0.5 ${avisosNoLeidos > 0 ? 'text-red-700' : 'text-amber-700'}`}>
+                        {[
+                          avisosNoLeidos > 0 &&
+                            (avisosNoLeidos === 1
+                              ? '1 no se pudo leer y no está en el archivo de asientos'
+                              : `${avisosNoLeidos} no se pudieron leer y no están en el archivo de asientos`),
+                          avisosNoCuadran > 0 &&
+                            `${avisosNoCuadran} ${avisosNoCuadran === 1 ? 'tiene un asiento que no cuadra' : 'tienen asientos que no cuadran'}`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                  </div>
+                  {avisosExpandido ? (
+                    <ChevronUp className={`h-5 w-5 ${avisosNoLeidos > 0 ? 'text-red-700' : 'text-amber-700'}`} />
+                  ) : (
+                    <ChevronDown className={`h-5 w-5 ${avisosNoLeidos > 0 ? 'text-red-700' : 'text-amber-700'}`} />
+                  )}
+                </button>
+
+                {avisosExpandido && (
+                  <div className="p-4">
+                    <div className="max-h-96 overflow-auto border border-gray-200 rounded-md bg-white">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Comprobante</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Fecha</th>
+                            <th className="px-4 py-2 text-right text-sm font-medium text-gray-700">Total</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Problema</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {avisos.map((aviso, index) => (
+                            <tr key={`${aviso.comprobante}-${index}`}>
+                              <td className="px-4 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
+                                {aviso.comprobante}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{aviso.fecha}</td>
+                              <td className="px-4 py-2 text-sm text-gray-700 text-right whitespace-nowrap">
+                                S/ {aviso.total.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-700">
+                                <span
+                                  className={`inline-block mr-2 px-2 py-0.5 rounded text-xs font-medium ${
+                                    aviso.tipo === 'no_leido' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                                  }`}
+                                >
+                                  {aviso.tipo === 'no_leido' ? 'No se leyó' : 'No cuadra'}
+                                </span>
+                                {aviso.detalle}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {mapeos.length > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-md overflow-hidden">

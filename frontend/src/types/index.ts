@@ -23,12 +23,21 @@ export interface ProcesamientoRequest {
   numero_comprobante_inicial: number
 }
 
+export interface AvisoComprobante {
+  tipo: 'no_leido' | 'no_cuadra'
+  comprobante: string
+  fecha: string
+  total: number
+  detalle: string
+}
+
 export interface ProcesamientoResponse {
   id: number
   nombre_archivo: string
   total_registros_procesados: number
   total_asientos_generados: number
   codigos_faltantes: string[]
+  avisos?: AvisoComprobante[]
   archivo_salida_url: string
   mensaje: string
 }
